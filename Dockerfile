@@ -4,7 +4,7 @@ FROM node:18-alpine
 # Install Python and build dependencies
 RUN apk update && apk add --no-cache \
     python3 \
-    py3-pip \
+    python3-pip \
     build-base \
     && python3 -m ensurepip --upgrade
 
