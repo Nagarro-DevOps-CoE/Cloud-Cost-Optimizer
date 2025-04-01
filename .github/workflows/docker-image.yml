@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main  # Trigger the action on a push to the main branch
-  workflow_dispatch:  # Allow manual triggering of the action
+  workflow_dispatch:  # Allows manual triggering of the action
 
 jobs:
   build-and-push:
@@ -24,12 +24,12 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}  # Use the secret you created for the Docker username
+          password: ${{ secrets.DOCKER_PASSWORD }}  # Use the secret you created for the Docker password
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/cloud-cost-optimizer:latest
+          tags: ghcr.io/${{ github.repository_owner }}/cloud-cost-optimizer:latest  # Replace with your actual image name
