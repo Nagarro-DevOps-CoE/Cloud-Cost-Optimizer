@@ -32,4 +32,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/cloud-cost-optimizer:latest  # Ensure all lowercase
+          tags: ghcr.io/nagarro-devops-coe/cloud-cost-optimizer:latest
