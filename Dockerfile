@@ -18,9 +18,6 @@ RUN apt-get update && apt-get install -y \
     librsvg2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Python path for npm (node-gyp dependency)
-RUN npm config set python $(which python3)
-
 # Copy package.json and install dependencies
 COPY package*.json ./
 RUN npm install
