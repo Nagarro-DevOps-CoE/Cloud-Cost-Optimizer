@@ -56,7 +56,7 @@ jobs:
               --name ${{ env.CONTAINER_APP_NAME }} \ 
               --resource-group ${{ env.RESOURCE_GROUP }} \ 
               --environment ${{ env.CONTAINER_APP_ENV }} \ 
-              --image ghcr.io/${{ env.REPOSITORY }}/backend:latest \ 
+              --image ghcr.io/${{ env.REPOSITORY }}/:latest \ 
               --target-port 8000 \ 
               --ingress external \ 
               --query properties.configuration.ingress.fqdn
