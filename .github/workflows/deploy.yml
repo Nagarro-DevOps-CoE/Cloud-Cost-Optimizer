@@ -14,49 +14,86 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   REGISTRY: ghcr.io
   REPOSITORY: ${{ github.repository_owner }}/${{ github.event.repository.name }}
-  RESOURCE_GROUP: my-resource-group
-  CONTAINER_APP_ENV: my-container-app-env
-  CONTAINER_APP_NAME: my-container-app
-  LOCATION: westus
 
 jobs:
   deploy-to-aca:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v1
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ env.AZURE_CLIENT_ID }}
-          tenant-id: ${{ env.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-      
-      - name: Deploy to Azure Container Apps
+
+      - name: Verify image exists
+        run: |
+          REPO_LOWER=$(echo "${{ env.REPOSITORY }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_LOWER=$REPO_LOWER" >> $GITHUB_ENV
+          echo "Checking if image exists..."
+          if ! docker pull ghcr.io/$REPO_LOWER:latest; then
+            echo "::error::Image does not exist. Make sure to run the build workflow first."
+            exit 1
+          fi
+
+      - name: Deploy to Azure Container App
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Ensure the container app environment exists
-            az containerapp env create \ 
-              --name ${{ env.CONTAINER_APP_ENV }} \ 
-              --resource-group ${{ env.RESOURCE_GROUP }} \ 
-              --location ${{ env.LOCATION }}
-            
-            # Deploy the container app
-            az containerapp create \ 
-              --name ${{ env.CONTAINER_APP_NAME }} \ 
-              --resource-group ${{ env.RESOURCE_GROUP }} \ 
-              --environment ${{ env.CONTAINER_APP_ENV }} \ 
-              --image ghcr.io/${{ env.REPOSITORY }}/:latest \ 
-              --target-port 8000 \ 
-              --ingress external \ 
-              --query properties.configuration.ingress.fqdn
+            RESOURCE_GROUP="my-resource-group"
+            CONTAINER_APP_NAME="my-container-app"
+            LOCATION="westus"
+            ENV_NAME="my-container-app-env"
+
+            # Create Container Apps Environment if not exists
+            if ! az containerapp env show --name $ENV_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
+              echo "Creating Container App Environment..."
+              az containerapp env create \
+                --name $ENV_NAME \
+                --resource-group $RESOURCE_GROUP \
+                --location $LOCATION
+            fi
+
+            # Deploy app
+            az containerapp create \
+              --name $CONTAINER_APP_NAME \
+              --resource-group $RESOURCE_GROUP \
+              --environment $ENV_NAME \
+              --image ghcr.io/${{ env.REPOSITORY }}:latest \
+              --target-port 8000 \
+              --ingress external \
+              --registry-server ghcr.io \
+              --registry-username ${{ github.repository_owner }} \
+              --registry-password ${{ secrets.CR_PAT }} \
+              --env-vars \
+                AZURE_AD_CLIENT_ID=401ee8c4-3914-4ccc-a261-1c2cef6d5bc9 \
+                AZURE_AD_TENANT_ID=a45fe71a-f480-4e42-ad5e-aff33165aa35 \
+                AZURE_CLIENT_ID=401ee8c4-3914-4ccc-a261-1c2cef6d5bc9 \
+                AZURE_TENANT_ID=a45fe71a-f480-4e42-ad5e-aff33165aa35 \
+                AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }} \
+                AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }} \
+                AZURE_RESOURCE_GROUP=security-resources \
+                AZURE_LOG_ANALYTICS_WORKSPACE_ID=c355c276-c993-40f8-8d03-3b6f2e05056c \
+                LOGIC_APP_TRIGGER_URL=https://your-logic-app-url.azurewebsites.net/api/trigger \
+                AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} \
+                AZURE_OPENAI_ENDPOINT=https://ai-ronniekapoor1914ai450068003648.openai.azure.com \
+                AZURE_OPENAI_DEPLOYMENT=gpt-4o
+
+      - name: Show Container App URL
+        run: |
+          echo "Fetching app URL..."
+          APP_URL=$(az containerapp show --name my-container-app --resource-group my-resource-group --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "App URL: http://$APP_URL"
+
+          echo "Azure AD Redirect URI: http://$APP_URL/auth/callback"
+          echo "GitHub Redirect URI: http://$APP_URL/auth/github/callback"
