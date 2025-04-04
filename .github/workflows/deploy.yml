@@ -28,7 +28,7 @@ jobs:
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
           client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          auth-type: servicePrincipal
+          auth-type: SERVICE_PRINCIPAL
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
