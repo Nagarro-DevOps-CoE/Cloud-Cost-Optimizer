@@ -28,7 +28,6 @@ jobs:
           client-id: 516919f2-fc07-4c56-9b35-d5067bec5670
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           enable-AzPSSession: false
           allow-no-subscriptions: false
 
