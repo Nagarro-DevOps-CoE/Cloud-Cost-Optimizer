@@ -1,15 +1,14 @@
 name: Deploy to Azure Container Apps
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
   packages: read
 
 env:
-  AZURE_CLIENT_ID: 401ee8c4-3914-4ccc-a261-1c2cef6d5bc9  # Service Principal Client ID
+  AZURE_CLIENT_ID: 401ee8c4-3914-4ccc-a261-1c2cef6d5bc9  # DevOpsCoEMasterSP Client ID
   AZURE_TENANT_ID: a45fe71a-f480-4e42-ad5e-aff33165aa35
   AZURE_SUBSCRIPTION_ID: ffc0ca9a-338c-4e3e-84c6-ab8f58bb82c0
   REGISTRY: ghcr.io
@@ -22,13 +21,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Azure Login with SP
+      - name: Azure Login with Service Principal
         uses: azure/login@v1
         with:
-          client-id: ${{ env.AZURE_CLIENT_ID }}
-          tenant-id: ${{ env.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          client-secret: oUf8Q~Au3VCBwS-GzJFRYasKDFaXzcodfsCNja6I
+          creds: ${{ secrets.AZURE_CREDENTIALS }}  # Use JSON-formatted credentials
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -41,9 +37,8 @@ jobs:
         run: |
           REPO_LOWER=$(echo "${{ env.REPOSITORY }}" | tr '[:upper:]' '[:lower:]')
           echo "REPO_LOWER=$REPO_LOWER" >> $GITHUB_ENV
-          echo "Checking if image exists..."
           if ! docker pull ghcr.io/$REPO_LOWER:latest; then
-            echo "::error::Image does not exist. Make sure to run the build workflow first."
+            echo "::error::Image does not exist. Run build workflow first."
             exit 1
           fi
 
@@ -51,21 +46,20 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            RESOURCE_GROUP="AIFinOps"  # Use the specified resource group
+            RESOURCE_GROUP="AIFinOps"
             CONTAINER_APP_NAME="my-container-app"
-            LOCATION="eastus"  # Match managed identity location
+            LOCATION="eastus"
             ENV_NAME="my-container-app-env"
 
-            # Create Container Apps Environment if not exists
+            # Create environment if needed
             if ! az containerapp env show --name $ENV_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
-              echo "Creating Container App Environment..."
               az containerapp env create \
                 --name $ENV_NAME \
                 --resource-group $RESOURCE_GROUP \
                 --location $LOCATION
             fi
 
-            # Deploy app with managed identity
+            # Deploy container app
             az containerapp create \
               --name $CONTAINER_APP_NAME \
               --resource-group $RESOURCE_GROUP \
@@ -79,10 +73,9 @@ jobs:
               --user-assigned $RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/cloud-cost-optimizer \
               --env-vars \
                 AZURE_AD_CLIENT_ID=401ee8c4-3914-4ccc-a261-1c2cef6d5bc9 \
-                AZURE_AD_TENANT_ID=a45fe71a-f480-4e42-ad5e-aff33165aa35 \
-                AZURE_CLIENT_ID=516919f2-fc07-4c56-9b35-d5067bec5670  # Managed Identity Client ID \
-                AZURE_TENANT_ID=a45fe71a-f480-4e42-ad5e-aff33165aa35 \
-                AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }} \
+                AZURE_AD_TENANT_ID=${{ env.AZURE_TENANT_ID }} \
+                AZURE_CLIENT_ID=516919f2-fc07-4c56-9b35-d5067bec5670 \  # Managed Identity
+                AZURE_TENANT_ID=${{ env.AZURE_TENANT_ID }} \
                 AZURE_SUBSCRIPTION_ID=${{ env.AZURE_SUBSCRIPTION_ID }} \
                 AZURE_RESOURCE_GROUP=security-resources \
                 AZURE_LOG_ANALYTICS_WORKSPACE_ID=c355c276-c993-40f8-8d03-3b6f2e05056c \
@@ -93,8 +86,11 @@ jobs:
 
       - name: Show Container App URL
         run: |
-          echo "Fetching app URL..."
-          APP_URL=$(az containerapp show --name my-container-app --resource-group AIFinOps --query "properties.configuration.ingress.fqdn" -o tsv)
+          APP_URL=$(az containerapp show \
+            --name my-container-app \
+            --resource-group AIFinOps \
+            --query "properties.configuration.ingress.fqdn" \
+            -o tsv)
           echo "App URL: http://$APP_URL"
           echo "Azure AD Redirect URI: http://$APP_URL/auth/callback"
           echo "GitHub Redirect URI: http://$APP_URL/auth/github/callback"
