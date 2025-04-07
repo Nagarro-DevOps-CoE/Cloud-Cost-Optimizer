@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
 
 permissions:
+  id-token: write 
   contents: read
   packages: read
 
 env:
-  AZURE_CLIENT_ID: 401ee8c4-3914-4ccc-a261-1c2cef6d5bc9  # DevOpsCoEMasterSP Client ID
+  AZURE_CLIENT_ID: 516919f2-fc07-4c56-9b35-d5067bec5670
   AZURE_TENANT_ID: a45fe71a-f480-4e42-ad5e-aff33165aa35
   AZURE_SUBSCRIPTION_ID: ffc0ca9a-338c-4e3e-84c6-ab8f58bb82c0
   REGISTRY: ghcr.io
@@ -21,10 +22,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Azure Login with Service Principal
+      - name: Azure Login with Managed Identity
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}  # Use JSON-formatted credentials
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
