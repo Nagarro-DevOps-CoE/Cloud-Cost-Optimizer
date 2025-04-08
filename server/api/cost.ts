@@ -362,7 +362,6 @@ async function analyzeNetworkTraffic(subscriptionId: string, token: string): Pro
   return trafficSpikes;
 }
 
-// Detect Virtual Network Misconfigurations
 async function detectMisconfigurations(vnets: VirtualNetwork[]): Promise<string[]> {
   const misconfigurations: string[] = [];
 
@@ -460,7 +459,6 @@ function getTimeRange(period: string): TimeRange {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // Handle custom month/year requests like "January 2025"
   const monthYearMatch = period.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i);
   if (monthYearMatch) {
     const monthName = monthYearMatch[1].toLowerCase();
@@ -492,7 +490,6 @@ function getTimeRange(period: string): TimeRange {
     };
   }
 
-  // Handle other cases (e.g., "last month", "last 3 months", etc.)
   const daysMatch = period.match(/last (\d+) days?/i);
   if (daysMatch) {
     const days = parseInt(daysMatch[1]);
@@ -608,7 +605,6 @@ async function detectSeasonality(dailyCosts: DailyCostData[]): Promise<Seasonali
     return patterns; // Return an empty array if no data is provided
   }
 
-  // Detect weekly patterns (e.g., higher costs on weekends)
   const weeklyCosts: { [day: string]: number } = {};
   dailyCosts.forEach((day) => {
     const date = new Date(day.date);
@@ -628,7 +624,6 @@ async function detectSeasonality(dailyCosts: DailyCostData[]): Promise<Seasonali
     }
   }
 
-  // Detect monthly patterns (e.g., higher costs at month-end)
   const monthlyCosts: { [day: string]: number } = {};
   dailyCosts.forEach((day) => {
     const date = new Date(day.date);
@@ -766,10 +761,8 @@ function detectCostSpikes(dailyCosts: DailyCostData[], percentageThreshold: numb
   return spikes;
 }
 
-// fetchIndustryBenchmarks फंक्शन को अपडेट करें
 async function fetchIndustryBenchmarks(serviceNames: string[]): Promise<IndustryBenchmark[]> {
   try {
-    // अगर API key नहीं है तो फ़ॉलबैक डेटा दें
     if (!process.env.CLOUD_BENCHMARK_API_KEY) {
       return getFallbackBenchmarks(serviceNames);
     }
@@ -789,7 +782,6 @@ async function fetchIndustryBenchmarks(serviceNames: string[]): Promise<Industry
   }
 }
 
-// नया फ़ॉलबैक डेटा फंक्शन जोड़ें
 function getFallbackBenchmarks(serviceNames: string[]): IndustryBenchmark[] {
   const fallbackData: {[key: string]: IndustryBenchmark} = {
     'Virtual Network': {
@@ -822,7 +814,6 @@ function getFallbackBenchmarks(serviceNames: string[]): IndustryBenchmark[] {
 
 async function fetchMultiCloudBenchmarks(serviceNames: string[]): Promise<MultiCloudBenchmark[]> {
   try {
-    // Fallback डेटा अगर API key न हो
     return serviceNames.map(service => ({
       service,
       azureCost: Math.random() * 1000,
@@ -835,7 +826,6 @@ async function fetchMultiCloudBenchmarks(serviceNames: string[]): Promise<MultiC
   }
 }
 
-// नया फॉलबैक डेटा
 function getFallbackMultiCloudBenchmarks(serviceNames: string[]): MultiCloudBenchmark[] {
   const benchmarks: {[key: string]: MultiCloudBenchmark} = {
     'Virtual Machines': {
@@ -859,7 +849,6 @@ function getFallbackMultiCloudBenchmarks(serviceNames: string[]): MultiCloudBenc
     .map(name => benchmarks[name]);
 }
 
-// कॉस्ट डेटा के साथ कंपेयर करें
 function compareWithBenchmarks(clientData: ServiceCost[], benchmarks: IndustryBenchmark[]): BenchmarkComparison[] {
   return clientData.map(service => {
     const benchmark = benchmarks.find(b => b.service === service.service);
@@ -899,7 +888,7 @@ async function getCostResponseWithBudget(subscriptionId: string, token: string, 
     multiCloudBenchmarks,
     underutilizedVMs: { recommendations: await getUnderutilizedVMRecommendations(subscriptionId, token) },
     virtualNetworks: await getVirtualNetworks(subscriptionId, token),
-    costSpikes, // Correctly assigns `string[]`
+    costSpikes, 
   };
 
   return response;
@@ -923,7 +912,6 @@ export default defineEventHandler(async (event) => {
 
     const vnets = await getVirtualNetworks(subscriptionId, token);
     
-    // Analyze Traffic Spikes
     const trafficSpikes = await analyzeNetworkTraffic(subscriptionId, token);
 
     const rootCauseAnalysis = await Promise.all(
@@ -942,7 +930,6 @@ export default defineEventHandler(async (event) => {
     );
 
     
-    // Detect Misconfigurations
     const misconfigurations = await detectMisconfigurations(vnets);
 
     const response = {
